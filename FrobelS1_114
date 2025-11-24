@@ -1,0 +1,959 @@
+<!DOCTYPE html>
+<html lang="zh-TW">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
+  <title>英文大挑戰 Phonics & Vocabulary</title>
+  
+  <!-- 引入 Tailwind CSS (樣式) -->
+  <script src="https://cdn.tailwindcss.com"></script>
+  
+  <!-- 引入 React 和 Babel (核心邏輯) -->
+  <script src="https://unpkg.com/react@18/umd/react.production.min.js" crossorigin></script>
+  <script src="https://unpkg.com/react-dom@18/umd/react-dom.production.min.js" crossorigin></script>
+  <script src="https://unpkg.com/@babel/standalone/babel.min.js"></script>
+
+  <style>
+    /* 自定義動畫 */
+    @keyframes shake {
+      0%, 100% { transform: translateX(0); }
+      25% { transform: translateX(-5px); }
+      75% { transform: translateX(5px); }
+    }
+    .animate-shake { animation: shake 0.4s ease-in-out; }
+    
+    /* 防止手機上雙擊縮放 */
+    body { touch-action: manipulation; }
+  </style>
+</head>
+<body class="bg-gray-50 select-none">
+  <div id="root"></div>
+
+  <script type="text/babel">
+    const { useState, useEffect, useRef, useMemo } = React;
+
+    // --- ICON COMPONENTS (取代外部套件，確保單檔可執行) ---
+    const IconWrapper = ({ children, size = 24, className = "" }) => (
+      <svg 
+        xmlns="http://www.w3.org/2000/svg" 
+        width={size} 
+        height={size} 
+        viewBox="0 0 24 24" 
+        fill="none" 
+        stroke="currentColor" 
+        strokeWidth="2" 
+        strokeLinecap="round" 
+        strokeLinejoin="round" 
+        className={className}
+      >
+        {children}
+      </svg>
+    );
+
+    const Icons = {
+      Headphones: (props) => <IconWrapper {...props}><path d="M3 18v-6a9 9 0 0 1 18 0v6"/><path d="M21 19a2 2 0 0 1-2 2h-1a2 2 0 0 1-2-2v-3a2 2 0 0 1 2-2h3zM3 19a2 2 0 0 0 2 2h1a2 2 0 0 0 2-2v-3a2 2 0 0 0-2-2H3z"/></IconWrapper>,
+      BookOpen: (props) => <IconWrapper {...props}><path d="M2 3h6a4 4 0 0 1 4 4v14a3 3 0 0 0-3-3H2z"/><path d="M22 3h-6a4 4 0 0 0-4 4v14a3 3 0 0 1 3-3h7z"/></IconWrapper>,
+      ArrowRight: (props) => <IconWrapper {...props}><line x1="5" y1="12" x2="19" y2="12"/><polyline points="12 5 19 12 12 19"/></IconWrapper>,
+      RotateCcw: (props) => <IconWrapper {...props}><path d="M3 12a9 9 0 1 0 9-9 9.75 9.75 0 0 0-6.74 2.74L3 8"/><path d="M3 3v5h5"/></IconWrapper>,
+      Settings: (props) => <IconWrapper {...props}><path d="M12.22 2h-.44a2 2 0 0 0-2 2v.18a2 2 0 0 1-1 1.73l-.43.25a2 2 0 0 1-2 0l-.15-.08a2 2 0 0 0-2.73.73l-.22.38a2 2 0 0 0 .73 2.73l.15.1a2 2 0 0 1 1 1.72v.51a2 2 0 0 1-1 1.74l-.15.09a2 2 0 0 0-.73 2.73l.22.38a2 2 0 0 0 2.73.73l.15-.08a2 2 0 0 1 2 0l.43.25a2 2 0 0 1 1 1.73V20a2 2 0 0 0 2 2h.44a2 2 0 0 0 2-2v-.18a2 2 0 0 1 1-1.73l.43-.25a2 2 0 0 1 2 0l.15.08a2 2 0 0 0 2.73-.73l.22-.39a2 2 0 0 0-.73-2.73l-.15-.08a2 2 0 0 1-1-1.74v-.47a2 2 0 0 1 1-1.74l.15-.09a2 2 0 0 0 .73-2.73l-.22-.35a2 2 0 0 0-2.73-.73l-.15.08a2 2 0 0 1-2 0l-.43-.25a2 2 0 0 1-1-1.73V4a2 2 0 0 0-2-2z"/><circle cx="12" cy="12" r="3"/></IconWrapper>,
+      Volume2: (props) => <IconWrapper {...props}><polygon points="11 5 6 9 2 9 2 15 6 15 11 19 11 5"/><path d="M19.07 4.93a10 10 0 0 1 0 14.14M15.54 8.46a5 5 0 0 1 0 7.07"/></IconWrapper>,
+      CheckCircle: (props) => <IconWrapper {...props}><path d="M22 11.08V12a10 10 0 1 1-5.93-9.14"/><polyline points="22 4 12 14.01 9 11.01"/></IconWrapper>,
+      XCircle: (props) => <IconWrapper {...props}><circle cx="12" cy="12" r="10"/><line x1="15" y1="9" x2="9" y2="15"/><line x1="9" y1="9" x2="15" y2="15"/></IconWrapper>,
+      Star: (props) => <IconWrapper {...props}><polygon points="12 2 15.09 8.26 22 9.27 17 14.14 18.18 21.02 12 17.77 5.82 21.02 7 14.14 2 9.27 8.91 8.26 12 2"/></IconWrapper>,
+      CheckSquare: (props) => <IconWrapper {...props}><polyline points="9 11 12 14 22 4"/><path d="M21 12v7a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h11"/></IconWrapper>,
+      Square: (props) => <IconWrapper {...props}><rect x="3" y="3" width="18" height="18" rx="2" ry="2"/></IconWrapper>,
+      AlertCircle: (props) => <IconWrapper {...props}><circle cx="12" cy="12" r="10"/><line x1="12" y1="8" x2="12" y2="12"/><line x1="12" y1="16" x2="12.01" y2="16"/></IconWrapper>
+    };
+
+    // --- DATA ---
+    const VOCABULARY_DATA = [
+      // W13/W14 Vocabulary
+      { unit: 'W13/W14', word: 'sidewalk', chinese: '人行道', bopomofo: 'ㄖㄣˊ ㄒㄧㄥˊ ㄉㄠˋ' },
+      { unit: 'W13/W14', word: 'apartment building', chinese: '公寓大樓', bopomofo: 'ㄍㄨㄥ ㄩˋ ㄉㄚˋ ㄌㄡˊ' },
+      { unit: 'W13/W14', word: 'drugstore', chinese: '藥局', bopomofo: 'ㄧㄠˋ ㄐㄩˊ' },
+      { unit: 'W13/W14', word: 'bank', chinese: '銀行', bopomofo: 'ㄧㄣˊ ㄏㄤˊ' },
+      { unit: 'W13/W14', word: 'supermarket', chinese: '超市', bopomofo: 'ㄔㄠ ㄕˋ' },
+      { unit: 'W13/W14', word: 'bounce', chinese: '（使）彈跳', bopomofo: '（ㄕˇ ）ㄊㄢˊ ㄊㄧㄠˋ' },
+      { unit: 'W13/W14', word: 'crossing guard', chinese: '交通指揮', bopomofo: 'ㄐㄧㄠ ㄊㄨㄥ ㄓˇ ㄏㄨㄟ' },
+      { unit: 'W13/W14', word: 'library / librarian', chinese: '圖書館 / 圖書館員', bopomofo: 'ㄊㄨˊ ㄕㄨ ㄍㄨㄢˇ / ㄊㄨˊ ㄕㄨ ㄍㄨㄢˇ ㄩㄢˊ' },
+      { unit: 'W13/W14', word: 'bake / baker', chinese: '烘焙 / 烘焙師', bopomofo: 'ㄏㄨㄥ ㄅㄟˋ / ㄏㄨㄥ ㄅㄟˋ ㄕ' },
+      { unit: 'W13/W14', word: 'fix', chinese: '修理', bopomofo: 'ㄒㄧㄡ ㄌㄧˇ' },
+      // W15/W16 Vocabulary
+      { unit: 'W15/W16', word: 'hut', chinese: '小屋', bopomofo: 'ㄒㄧㄠˇ ㄨ' },
+      { unit: 'W15/W16', word: 'stick', chinese: '樹枝', bopomofo: 'ㄕㄨˋ ㄓ' },
+      { unit: 'W15/W16', word: 'mud', chinese: '泥土', bopomofo: 'ㄋㄧˊ ㄊㄨˇ' },
+      { unit: 'W15/W16', word: 'sleep', chinese: '睡覺', bopomofo: 'ㄕㄨㄟˋ ㄐㄧㄠˋ' },
+      { unit: 'W15/W16', word: 'raindrop', chinese: '雨滴', bopomofo: 'ㄩˇ ㄉㄧ' },
+      { unit: 'W15/W16', word: 'roof', chinese: '屋頂', bopomofo: 'ㄨ ㄉㄧㄥˇ' },
+      { unit: 'W15/W16', word: 'grass', chinese: '草', bopomofo: 'ㄘㄠˇ' },
+      { unit: 'W15/W16', word: 'finish', chinese: '完成', bopomofo: 'ㄨㄢˊ ㄔㄥˊ' },
+      { unit: 'W15/W16', word: 'bedroom', chinese: '臥室', bopomofo: 'ㄨㄛˋ ㄕˋ' },
+      { unit: 'W15/W16', word: 'build', chinese: '建造', bopomofo: 'ㄐㄧㄢˋ ㄗㄠˋ' },
+    ];
+
+    const PHONICS_DATA = [
+      // W1 Phonics
+      { unit: 'W1 Phonics', word: 'sat' },
+      { unit: 'W1 Phonics', word: 'bat' },
+      { unit: 'W1 Phonics', word: 'hat' },
+      { unit: 'W1 Phonics', word: 'am' },
+      { unit: 'W1 Phonics', word: 'an' },
+      { unit: 'W1 Phonics', word: 'and' },
+      { unit: 'W1 Phonics', word: 'as' },
+      { unit: 'W1 Phonics', word: 'has' },
+      { unit: 'W1 Phonics', word: 'ask' },
+      { unit: 'W1 Phonics', word: 'can' },
+      // W2 Phonics
+      { unit: 'W2 Phonics', word: 'ham' },
+      { unit: 'W2 Phonics', word: 'at' },
+      { unit: 'W2 Phonics', word: 'hand' },
+      { unit: 'W2 Phonics', word: 'man' },
+      { unit: 'W2 Phonics', word: 'mask' },
+      { unit: 'W2 Phonics', word: 'all' },
+      { unit: 'W2 Phonics', word: 'ball' },
+      { unit: 'W2 Phonics', word: 'ran' },
+      { unit: 'W2 Phonics', word: 'had' },
+      { unit: 'W2 Phonics', word: 'fast' },
+      // W3 Phonics
+      { unit: 'W3 Phonics', word: 'best' },
+      { unit: 'W3 Phonics', word: 'get' },
+      { unit: 'W3 Phonics', word: 'help' },
+      { unit: 'W3 Phonics', word: 'let' },
+      { unit: 'W3 Phonics', word: 'red' },
+      { unit: 'W3 Phonics', word: 'seven' },
+      { unit: 'W3 Phonics', word: 'ten' },
+      { unit: 'W3 Phonics', word: 'went' },
+      { unit: 'W3 Phonics', word: 'yes' },
+      { unit: 'W3 Phonics', word: 'said' },
+      // W4 Phonics
+      { unit: 'W4 Phonics', word: 'if' },
+      { unit: 'W4 Phonics', word: 'in' },
+      { unit: 'W4 Phonics', word: 'sit' },
+      { unit: 'W4 Phonics', word: 'its' },
+      { unit: 'W4 Phonics', word: 'big' },
+      { unit: 'W4 Phonics', word: 'six' },
+      { unit: 'W4 Phonics', word: 'did' },
+      { unit: 'W4 Phonics', word: 'him' },
+      { unit: 'W4 Phonics', word: 'his' },
+      { unit: 'W4 Phonics', word: 'little' },
+      // W5 Phonics
+      { unit: 'W5 Phonics', word: 'hot' },
+      { unit: 'W5 Phonics', word: 'not' },
+      { unit: 'W5 Phonics', word: 'off' },
+      { unit: 'W5 Phonics', word: 'on' },
+      { unit: 'W5 Phonics', word: 'stop' },
+      { unit: 'W5 Phonics', word: 'into' },
+      { unit: 'W5 Phonics', word: 'who' },
+      { unit: 'W5 Phonics', word: 'to / too / two' },
+      { unit: 'W5 Phonics', word: 'do' },
+      { unit: 'W5 Phonics', word: 'you' },
+      // W6 Phonics
+      { unit: 'W6 Phonics', word: 'no / know' },
+      { unit: 'W6 Phonics', word: 'go' },
+      { unit: 'W6 Phonics', word: 'also' },
+      { unit: 'W6 Phonics', word: 'or' },
+      { unit: 'W6 Phonics', word: 'for' },
+      { unit: 'W6 Phonics', word: 'over' },
+      { unit: 'W6 Phonics', word: 'toe' },
+      { unit: 'W6 Phonics', word: 'robot' },
+      { unit: 'W6 Phonics', word: 'only' },
+      { unit: 'W6 Phonics', word: 'bin / been' },
+      // W7 Phonics
+      { unit: 'W7 Phonics', word: 'open' },
+      { unit: 'W7 Phonics', word: 'close' },
+      { unit: 'W7 Phonics', word: 'both' },
+      { unit: 'W7 Phonics', word: 'don’t' },
+      { unit: 'W7 Phonics', word: 'the' },
+      { unit: 'W7 Phonics', word: 'was' },
+      { unit: 'W7 Phonics', word: 'other' },
+      { unit: 'W7 Phonics', word: 'come' },
+      { unit: 'W7 Phonics', word: 'some' },
+      { unit: 'W7 Phonics', word: 'jump' },
+      // W8 Phonics
+      { unit: 'W8 Phonics', word: 'all' },
+      { unit: 'W8 Phonics', word: 'fall' },
+      { unit: 'W8 Phonics', word: 'fell' },
+      { unit: 'W8 Phonics', word: 'full' },
+      { unit: 'W8 Phonics', word: 'pull' },
+      { unit: 'W8 Phonics', word: 'well' },
+      { unit: 'W8 Phonics', word: 'will' },
+      { unit: 'W8 Phonics', word: 'yell' },
+      { unit: 'W8 Phonics', word: 'miss' },
+      { unit: 'W8 Phonics', word: 'stuff' },
+      // W10 Phonics
+      { unit: 'W10 Phonics', word: 'bang' },
+      { unit: 'W10 Phonics', word: 'hang' },
+      { unit: 'W10 Phonics', word: 'swing' },
+      { unit: 'W10 Phonics', word: 'king' },
+      { unit: 'W10 Phonics', word: 'sing' },
+      { unit: 'W10 Phonics', word: 'thing' },
+      { unit: 'W10 Phonics', word: 'long' },
+      { unit: 'W10 Phonics', word: 'strong' },
+      { unit: 'W10 Phonics', word: 'hung' },
+      { unit: 'W10 Phonics', word: 'sung' },
+      // W13 Phonics
+      { unit: 'W13 Phonics', word: 'back' },
+      { unit: 'W13 Phonics', word: 'pack' },
+      { unit: 'W13 Phonics', word: 'snack' },
+      { unit: 'W13 Phonics', word: 'neck' },
+      { unit: 'W13 Phonics', word: 'stick' },
+      { unit: 'W13 Phonics', word: 'pick' },
+      { unit: 'W13 Phonics', word: 'clock' },
+      { unit: 'W13 Phonics', word: 'lock' },
+      { unit: 'W13 Phonics', word: 'duck' },
+      { unit: 'W13 Phonics', word: 'luck' },
+      // W15 Phonics
+      { unit: 'W15 Phonics', word: 'glad' },
+      { unit: 'W15 Phonics', word: 'glass' },
+      { unit: 'W15 Phonics', word: 'glue' },
+      { unit: 'W15 Phonics', word: 'play' },
+      { unit: 'W15 Phonics', word: 'please' },
+      { unit: 'W15 Phonics', word: 'plug' },
+      { unit: 'W15 Phonics', word: 'plop' },
+      { unit: 'W15 Phonics', word: 'sleep' },
+      { unit: 'W15 Phonics', word: 'slip' },
+      { unit: 'W15 Phonics', word: 'slide' },
+      // W16 Phonics
+      { unit: 'W16 Phonics', word: 'brick' },
+      { unit: 'W16 Phonics', word: 'brown' },
+      { unit: 'W16 Phonics', word: 'bring' },
+      { unit: 'W16 Phonics', word: 'crab' },
+      { unit: 'W16 Phonics', word: 'crash' },
+      { unit: 'W16 Phonics', word: 'crop' },
+      { unit: 'W16 Phonics', word: 'frog' },
+      { unit: 'W16 Phonics', word: 'fresh' },
+      { unit: 'W16 Phonics', word: 'fret' },
+      { unit: 'W16 Phonics', word: 'from' },
+    ];
+
+    // Helper: Shuffle array
+    const shuffleArray = (array) => {
+      const newArray = [...array];
+      for (let i = newArray.length - 1; i > 0; i--) {
+        const j = Math.floor(Math.random() * (i + 1));
+        [newArray[i], newArray[j]] = [newArray[j], newArray[i]];
+      }
+      return newArray;
+    };
+
+    // --- COMPONENTS ---
+
+    // 1. Main Menu
+    const MainMenu = ({ onSelectMode }) => (
+      <div className="flex flex-col items-center justify-center min-h-screen bg-gradient-to-br from-blue-100 to-indigo-200 p-4 font-sans">
+        <div className="bg-white p-8 rounded-3xl shadow-xl max-w-md w-full text-center border-4 border-indigo-100">
+          <h1 className="text-4xl font-bold text-indigo-600 mb-2">英文大挑戰</h1>
+          <p className="text-gray-500 mb-8">English Learning Game</p>
+          
+          <div className="space-y-4">
+            <button 
+              onClick={() => onSelectMode('phonics')}
+              className="w-full group relative flex items-center justify-center p-6 bg-orange-100 hover:bg-orange-200 rounded-2xl transition-all duration-300 border-2 border-orange-200 hover:border-orange-400"
+            >
+              <div className="bg-orange-500 p-3 rounded-full text-white mr-4 shadow-lg group-hover:scale-110 transition-transform">
+                <Icons.Headphones size={32} />
+              </div>
+              <div className="text-left">
+                <h3 className="text-xl font-bold text-orange-800">Phonics 聽寫</h3>
+                <p className="text-sm text-orange-600">聽發音，拼單字</p>
+              </div>
+              <div className="absolute right-6 text-orange-400 opacity-0 group-hover:opacity-100 transition-opacity">
+                <Icons.ArrowRight />
+              </div>
+            </button>
+
+            <button 
+              onClick={() => onSelectMode('vocab')}
+              className="w-full group relative flex items-center justify-center p-6 bg-green-100 hover:bg-green-200 rounded-2xl transition-all duration-300 border-2 border-green-200 hover:border-green-400"
+            >
+              <div className="bg-green-500 p-3 rounded-full text-white mr-4 shadow-lg group-hover:scale-110 transition-transform">
+                <Icons.BookOpen size={32} />
+              </div>
+              <div className="text-left">
+                <h3 className="text-xl font-bold text-green-800">Vocabulary 配對</h3>
+                <p className="text-sm text-green-600">中文解釋配對單字</p>
+              </div>
+              <div className="absolute right-6 text-green-400 opacity-0 group-hover:opacity-100 transition-opacity">
+                <Icons.ArrowRight />
+              </div>
+            </button>
+          </div>
+        </div>
+      </div>
+    );
+
+    // 2. Configuration Screen
+    const ConfigScreen = ({ mode, onStart, onBack }) => {
+      const [selectedUnits, setSelectedUnits] = useState([]);
+      const [questionCount, setQuestionCount] = useState(10);
+      const [availableVoices, setAvailableVoices] = useState([]);
+      const [selectedVoiceURI, setSelectedVoiceURI] = useState('');
+      const [voiceError, setVoiceError] = useState(false);
+      
+      const availableUnits = mode === 'phonics' 
+        ? [...new Set(PHONICS_DATA.map(d => d.unit))]
+        : [...new Set(VOCABULARY_DATA.map(d => d.unit))];
+
+      useEffect(() => {
+        const loadVoices = () => {
+          if (typeof window === 'undefined' || !window.speechSynthesis) {
+            setVoiceError(true);
+            return;
+          }
+
+          try {
+            const voices = window.speechSynthesis.getVoices();
+            const englishVoices = voices.filter(v => v.lang.startsWith('en'));
+            setAvailableVoices(englishVoices);
+            
+            if (englishVoices.length > 0 && !selectedVoiceURI) {
+              const defaultVoice = englishVoices.find(v => v.name.includes('Google US')) || englishVoices[0];
+              setSelectedVoiceURI(defaultVoice.voiceURI);
+            }
+          } catch (e) {
+            console.error("Error loading voices:", e);
+            setVoiceError(true);
+          }
+        };
+
+        loadVoices();
+        if (typeof window !== 'undefined' && window.speechSynthesis && window.speechSynthesis.onvoiceschanged !== undefined) {
+          window.speechSynthesis.onvoiceschanged = loadVoices;
+        }
+      }, [selectedVoiceURI]);
+
+      const handleToggleUnit = (unit) => {
+        setSelectedUnits(prev => 
+          prev.includes(unit) ? prev.filter(u => u !== unit) : [...prev, unit]
+        );
+      };
+
+      const handleSelectAll = () => {
+        if (selectedUnits.length === availableUnits.length) {
+          setSelectedUnits([]);
+        } else {
+          setSelectedUnits([...availableUnits]);
+        }
+      };
+
+      const handleStart = () => {
+        if (selectedUnits.length === 0) {
+          alert("請至少選擇一個範圍！");
+          return;
+        }
+        const voiceObj = availableVoices.find(v => v.voiceURI === selectedVoiceURI);
+        onStart(selectedUnits, questionCount, voiceObj);
+      };
+
+      const testVoice = () => {
+        if (typeof window === 'undefined' || !window.speechSynthesis) return;
+
+        const voiceObj = availableVoices.find(v => v.voiceURI === selectedVoiceURI);
+        if (voiceObj) {
+          window.speechSynthesis.cancel();
+          const utterance = new SpeechSynthesisUtterance("Hello, this is my voice.");
+          utterance.voice = voiceObj;
+          window.speechSynthesis.speak(utterance);
+        }
+      };
+
+      return (
+        <div className="flex flex-col items-center justify-center min-h-screen bg-gray-50 p-4 font-sans">
+          <div className="bg-white p-6 rounded-2xl shadow-lg max-w-md w-full border border-gray-100">
+            <button onClick={onBack} className="text-gray-400 hover:text-gray-600 mb-4 flex items-center">
+              <Icons.RotateCcw size={16} className="mr-1" /> 返回
+            </button>
+            <h2 className="text-2xl font-bold text-gray-800 mb-6 flex items-center">
+              <Icons.Settings className="mr-2 text-indigo-500" /> 設定遊戲
+            </h2>
+
+            <div className="mb-6">
+              <div className="flex justify-between items-center mb-3">
+                 <h3 className="font-semibold text-gray-700">1. 選擇範圍 (Range)</h3>
+                 <button 
+                   onClick={handleSelectAll}
+                   className="text-xs bg-indigo-50 hover:bg-indigo-100 text-indigo-600 px-3 py-1.5 rounded-lg font-medium transition-colors flex items-center"
+                 >
+                   {selectedUnits.length === availableUnits.length ? (
+                     <><Icons.Square size={14} className="mr-1"/> 取消全選</>
+                   ) : (
+                     <><Icons.CheckSquare size={14} className="mr-1"/> 全選</>
+                   )}
+                 </button>
+              </div>
+              <div className="space-y-2 max-h-48 overflow-y-auto pr-1">
+                {availableUnits.map(unit => (
+                  <label key={unit} className="flex items-center p-3 border rounded-xl hover:bg-indigo-50 cursor-pointer transition-colors">
+                    <input 
+                      type="checkbox" 
+                      checked={selectedUnits.includes(unit)} 
+                      onChange={() => handleToggleUnit(unit)}
+                      className="w-5 h-5 text-indigo-600 rounded focus:ring-indigo-500"
+                    />
+                    <span className="ml-3 font-medium text-gray-700">{unit}</span>
+                  </label>
+                ))}
+              </div>
+            </div>
+
+            <div className="mb-6">
+              <h3 className="font-semibold text-gray-700 mb-3">2. 題目數量: {questionCount}</h3>
+              <input 
+                type="range" 
+                min="5" 
+                max="30" 
+                step="5"
+                value={questionCount} 
+                onChange={(e) => setQuestionCount(Number(e.target.value))}
+                className="w-full h-2 bg-gray-200 rounded-lg appearance-none cursor-pointer accent-indigo-600"
+              />
+              <div className="flex justify-between text-xs text-gray-400 mt-1">
+                <span>5</span>
+                <span>30</span>
+              </div>
+            </div>
+
+            {mode === 'phonics' && (
+              <div className="mb-8">
+                <h3 className="font-semibold text-gray-700 mb-3 flex items-center">
+                  3. 選擇發音 (Voice)
+                  <button 
+                    onClick={testVoice}
+                    disabled={voiceError || availableVoices.length === 0}
+                    className="ml-auto text-xs bg-gray-100 hover:bg-gray-200 text-gray-600 px-2 py-1 rounded flex items-center"
+                  >
+                    <Icons.Volume2 size={12} className="mr-1"/> 試聽
+                  </button>
+                </h3>
+                
+                {voiceError ? (
+                   <div className="text-sm text-red-500 bg-red-50 p-2 rounded">
+                     <p className="flex items-center"><Icons.AlertCircle size={14} className="mr-1"/> 您的裝置似乎不支援語音設定</p>
+                   </div>
+                ) : availableVoices.length > 0 ? (
+                  <select 
+                    value={selectedVoiceURI} 
+                    onChange={(e) => setSelectedVoiceURI(e.target.value)}
+                    className="w-full p-3 border rounded-xl bg-white focus:ring-indigo-500 focus:border-indigo-500"
+                  >
+                    {availableVoices.map(v => (
+                      <option key={v.voiceURI} value={v.voiceURI}>
+                        {v.name.replace('Microsoft', '').replace('Google', '')} ({v.lang})
+                      </option>
+                    ))}
+                  </select>
+                ) : (
+                  <p className="text-sm text-gray-500 bg-gray-100 p-2 rounded">
+                    正在載入語音或使用預設語音...
+                  </p>
+                )}
+              </div>
+            )}
+
+            <button 
+              onClick={handleStart}
+              className="w-full bg-indigo-600 hover:bg-indigo-700 text-white font-bold py-4 rounded-xl shadow-lg hover:shadow-xl transition-all transform active:scale-95"
+            >
+              開始遊戲 (Start Game)
+            </button>
+          </div>
+        </div>
+      );
+    };
+
+    // 3. Phonics Game
+    const PhonicsGame = ({ questions, voice, onFinish, onQuit }) => {
+      const [currentIndex, setCurrentIndex] = useState(0);
+      const [feedback, setFeedback] = useState(null); 
+      const [score, setScore] = useState(0);
+      const [hasPlayed, setHasPlayed] = useState(false);
+      const [incorrectList, setIncorrectList] = useState([]);
+      const firstInputRef = useRef(null);
+
+      const currentQ = questions[currentIndex];
+
+      const correctAnswers = useMemo(() => {
+        return currentQ.word.split('/').map(w => w.trim());
+      }, [currentQ]);
+
+      const [userInputs, setUserInputs] = useState([]);
+
+      useEffect(() => {
+        setUserInputs(Array(correctAnswers.length).fill(''));
+
+        const timer = setTimeout(() => {
+          speakWord(currentQ.word);
+        }, 500);
+        return () => clearTimeout(timer);
+      }, [currentQ, correctAnswers.length]);
+
+      const speakWord = (word) => {
+        if (typeof window === 'undefined' || !window.speechSynthesis) return;
+
+        try {
+          window.speechSynthesis.cancel();
+          const textToSpeak = word.split('/')[0].trim();
+          const utterance = new SpeechSynthesisUtterance(textToSpeak);
+          
+          if (voice) utterance.voice = voice;
+          utterance.lang = voice ? voice.lang : 'en-US';
+          utterance.rate = 0.8; 
+          
+          window.speechSynthesis.speak(utterance);
+          setHasPlayed(true);
+          setTimeout(() => {
+              firstInputRef.current?.focus();
+          }, 100);
+        } catch (e) {
+          console.error("Speech error:", e);
+        }
+      };
+
+      const handleInputChange = (index, value) => {
+          const newInputs = [...userInputs];
+          newInputs[index] = value;
+          setUserInputs(newInputs);
+      };
+
+      const checkAnswer = (e) => {
+        e.preventDefault();
+        
+        if (userInputs.some(input => !input.trim())) return;
+
+        const cleanUserInputs = userInputs.map(i => i.trim().toLowerCase());
+        const cleanCorrectAnswers = correctAnswers.map(a => a.toLowerCase());
+
+        const userSet = new Set(cleanUserInputs);
+        const correctSet = new Set(cleanCorrectAnswers);
+
+        const isCorrect = [...correctSet].every(ans => userSet.has(ans));
+        
+        let newScore = score;
+        let newIncorrectList = [...incorrectList];
+
+        if (isCorrect) {
+          setFeedback('correct');
+          newScore = score + 1;
+          setScore(newScore);
+        } else {
+          setFeedback('incorrect');
+          newIncorrectList.push({
+            q: "聽寫拼字",
+            correct: currentQ.word,
+            user: cleanUserInputs.join(' / ')
+          });
+          setIncorrectList(newIncorrectList);
+        }
+
+        setTimeout(() => {
+          setFeedback(null);
+          if (currentIndex < questions.length - 1) {
+            setCurrentIndex(prev => prev + 1);
+          } else {
+            onFinish(newScore, questions.length, newIncorrectList);
+          }
+        }, 1500);
+      };
+
+      return (
+        <div className="min-h-screen bg-orange-50 flex flex-col p-4">
+          <div className="flex justify-between items-center mb-6">
+            <button onClick={onQuit} className="text-gray-500 hover:text-red-500">
+              <Icons.XCircle /> 離開
+            </button>
+            <div className="font-bold text-orange-600 bg-orange-100 px-4 py-1 rounded-full">
+               {currentIndex + 1} / {questions.length}
+            </div>
+          </div>
+
+          <div className="flex-1 flex flex-col items-center justify-center max-w-lg mx-auto w-full relative">
+            <div className="mb-2 text-sm text-gray-400">{currentQ.unit}</div>
+            
+            <button 
+              onClick={() => speakWord(currentQ.word)}
+              className={`p-8 rounded-full mb-4 shadow-xl transition-transform active:scale-95 ${hasPlayed ? 'bg-orange-500 text-white' : 'bg-gray-200 text-gray-400'}`}
+            >
+              <Icons.Volume2 size={64} />
+            </button>
+            <p className="text-gray-500 text-sm mb-6">點擊喇叭重聽發音</p>
+
+            {voice && (
+              <p className="text-xs text-orange-400 mb-4 bg-orange-100 px-2 py-1 rounded">
+                 Voice: {voice.name.slice(0, 15)}...
+              </p>
+            )}
+            
+            {correctAnswers.length > 1 && (
+               <p className="text-xs text-orange-500 mb-4 font-bold bg-yellow-100 px-3 py-1 rounded-full animate-pulse">
+                 💡 提示: 此發音有 {correctAnswers.length} 個同音字，請全部寫出來 (順序不拘)
+               </p>
+            )}
+
+            <form onSubmit={checkAnswer} className="w-full relative flex flex-col items-center gap-3">
+              <div className="flex flex-wrap justify-center gap-3 w-full">
+                {userInputs.map((val, idx) => (
+                    <input
+                        key={idx}
+                        ref={idx === 0 ? firstInputRef : null}
+                        type="text"
+                        value={val}
+                        onChange={(e) => handleInputChange(idx, e.target.value)}
+                        disabled={feedback !== null}
+                        placeholder={`Answer ${idx + 1}`}
+                        className={`text-center text-2xl font-bold p-3 border-b-4 focus:outline-none bg-white/50 rounded-t-lg transition-colors ${
+                            feedback === 'correct' ? 'border-green-500 text-green-600 bg-green-50' : 
+                            feedback === 'incorrect' ? 'border-red-500 text-red-600 bg-red-50' : 
+                            'border-orange-300 text-gray-800 focus:border-orange-500 focus:bg-white'
+                        }`}
+                        style={{ 
+                            flex: '1 1 120px', 
+                            maxWidth: correctAnswers.length > 1 ? '160px' : '100%' 
+                        }}
+                        autoComplete="off"
+                        autoCorrect="off"
+                        spellCheck="false"
+                    />
+                ))}
+              </div>
+              
+              {feedback === 'correct' && (
+                 <div className="absolute top-0 right-0 bottom-0 left-0 flex items-center justify-center pointer-events-none z-10">
+                   <Icons.CheckCircle size={48} className="text-green-500 animate-bounce bg-white rounded-full shadow-lg" />
+                 </div>
+              )}
+              {feedback === 'incorrect' && (
+                 <div className="mt-4 bg-white p-3 rounded-xl shadow-lg border border-red-200 w-full animate-shake">
+                    <p className="text-red-500 font-bold mb-1 flex items-center justify-center"><Icons.XCircle size={20} className="mr-1"/> Wrong</p>
+                    <div className="text-gray-600 text-sm text-center">
+                        Correct Answers: 
+                        <div className="flex flex-wrap justify-center gap-2 mt-1">
+                            {correctAnswers.map((ans, i) => (
+                                <span key={i} className="bg-green-100 text-green-800 px-2 py-0.5 rounded font-bold">{ans}</span>
+                            ))}
+                        </div>
+                    </div>
+                 </div>
+              )}
+
+              <button 
+                type="submit" 
+                disabled={userInputs.some(i => !i.trim()) || feedback !== null}
+                className={`mt-8 w-full py-4 rounded-xl font-bold text-lg shadow-lg transition-all ${
+                  userInputs.some(i => !i.trim()) || feedback !== null 
+                  ? 'bg-gray-200 text-gray-400 cursor-not-allowed' 
+                  : 'bg-orange-500 text-white hover:bg-orange-600 active:scale-95'
+                }`}
+              >
+                送出答案 (Submit)
+              </button>
+            </form>
+          </div>
+        </div>
+      );
+    };
+
+    // 4. Vocabulary Game
+    const VocabGame = ({ questions, onFinish, onQuit }) => {
+      const [wordBank, setWordBank] = useState([]);
+      const [answers, setAnswers] = useState({}); 
+      const [selectedWord, setSelectedWord] = useState(null);
+      const [isChecked, setIsChecked] = useState(false);
+
+      useEffect(() => {
+        const words = questions.map(q => q.word);
+        setWordBank(shuffleArray(words));
+      }, [questions]);
+
+      const handleWordClick = (word) => {
+        if (isChecked) return;
+        if (selectedWord === word) {
+          setSelectedWord(null);
+        } else {
+          setSelectedWord(word);
+        }
+      };
+
+      const handleSlotClick = (qIndex) => {
+        if (isChecked) return;
+        
+        if (selectedWord) {
+          const prevAnswers = {...answers};
+          const newAnswers = {...prevAnswers, [qIndex]: selectedWord};
+          setAnswers(newAnswers);
+          setSelectedWord(null);
+        } else if (answers[qIndex]) {
+          const newAnswers = {...answers};
+          delete newAnswers[qIndex];
+          setAnswers(newAnswers);
+        }
+      };
+
+      const getAvailableBankWords = () => {
+        const placedWords = Object.values(answers);
+        return wordBank.filter(w => !placedWords.includes(w));
+      };
+
+      const checkResults = () => {
+        setIsChecked(true);
+      };
+
+      const handleCalculateAndFinish = () => {
+        let s = 0;
+        const mistakes = [];
+        questions.forEach((q, idx) => {
+          const userAns = answers[idx];
+          if (userAns === q.word) {
+            s++;
+          } else {
+            mistakes.push({
+                q: q.chinese,
+                correct: q.word,
+                user: userAns || '(未作答)'
+            });
+          }
+        });
+        onFinish(s, questions.length, mistakes);
+      };
+
+      return (
+        <div className="min-h-screen bg-green-50 flex flex-col p-2 md:p-4 font-sans">
+          <div className="flex justify-between items-center mb-4 sticky top-0 bg-green-50 z-10 py-2 border-b border-green-100">
+            <button onClick={onQuit} className="text-gray-500 hover:text-red-500">
+              <Icons.XCircle /> 離開
+            </button>
+            <div className="font-bold text-green-700">
+              Vocabulary Match
+            </div>
+            {isChecked ? (
+               <button onClick={handleCalculateAndFinish} className="bg-indigo-600 text-white px-4 py-1 rounded-full text-sm hover:bg-indigo-700 shadow-lg transition-transform active:scale-95">
+                 查看結果
+               </button>
+            ) : (
+              <button 
+                onClick={checkResults}
+                disabled={Object.keys(answers).length !== questions.length}
+                className={`px-4 py-1 rounded-full text-sm font-bold transition-colors ${Object.keys(answers).length !== questions.length ? 'bg-gray-300 text-gray-500' : 'bg-green-600 text-white animate-pulse'}`}
+              >
+                交卷 Check
+              </button>
+            )}
+          </div>
+
+          <div className={`mb-6 p-4 bg-white rounded-xl shadow-md border-2 border-green-100 sticky top-14 z-10 transition-all ${isChecked ? 'opacity-50 pointer-events-none' : ''}`}>
+            <p className="text-xs text-gray-400 mb-2 uppercase tracking-wide font-bold">Word Bank (點擊單字再點擊下方空格)</p>
+            <div className="flex flex-wrap gap-2 justify-center">
+              {getAvailableBankWords().length === 0 && !isChecked && (
+                <div className="text-gray-400 italic py-2">所有單字都已放置 (All words placed)</div>
+              )}
+              {getAvailableBankWords().map((word) => (
+                <button
+                  key={word}
+                  onClick={() => handleWordClick(word)}
+                  className={`px-3 py-2 rounded-lg text-sm font-medium border-b-2 transition-all active:scale-95 ${
+                    selectedWord === word 
+                      ? 'bg-indigo-500 text-white border-indigo-700 scale-105 shadow-lg' 
+                      : 'bg-green-100 text-green-800 border-green-300 hover:bg-green-200'
+                  }`}
+                >
+                  {word}
+                </button>
+              ))}
+            </div>
+          </div>
+
+          <div className="space-y-3 pb-10 max-w-2xl mx-auto w-full">
+            {questions.map((q, idx) => {
+              const isCorrect = isChecked && answers[idx] === q.word;
+              const isWrong = isChecked && answers[idx] !== q.word;
+
+              return (
+                <div key={idx} className="bg-white p-3 rounded-xl shadow-sm border border-gray-100 flex flex-col md:flex-row md:items-center justify-between gap-3">
+                  <div className="flex-1">
+                    <div className="flex items-baseline">
+                      <span className="text-lg font-bold text-gray-800 mr-2">{q.chinese}</span>
+                      <span className="text-xs text-gray-400 bg-gray-100 px-1 rounded">{q.unit}</span>
+                    </div>
+                    <div className="text-sm text-gray-500 font-serif tracking-widest">{q.bopomofo}</div>
+                  </div>
+
+                  <div 
+                    onClick={() => handleSlotClick(idx)}
+                    className={`
+                      relative h-12 min-w-[180px] rounded-lg border-2 border-dashed flex items-center justify-center cursor-pointer transition-colors
+                      ${isChecked 
+                        ? (isCorrect ? 'bg-green-50 border-green-400' : 'bg-red-50 border-red-400') 
+                        : (selectedWord ? 'bg-indigo-50 border-indigo-300 animate-pulse' : 'bg-gray-50 border-gray-300 hover:border-gray-400')
+                      }
+                    `}
+                  >
+                    {answers[idx] ? (
+                      <span className={`font-bold ${isCorrect ? 'text-green-700' : isWrong ? 'text-red-700 line-through' : 'text-gray-800'}`}>
+                        {answers[idx]}
+                      </span>
+                    ) : (
+                      <span className="text-gray-300 text-xs select-none">放置處 (Place Here)</span>
+                    )}
+
+                    {isWrong && (
+                      <div className="absolute -bottom-6 left-0 text-xs font-bold text-green-600 bg-green-100 px-2 py-0.5 rounded">
+                        Ans: {q.word}
+                      </div>
+                    )}
+                  </div>
+                </div>
+              );
+            })}
+          </div>
+        </div>
+      );
+    };
+
+    // 5. Results Screen
+    const ResultsScreen = ({ score, total, incorrectItems, onRestart, onHome }) => {
+      const percentage = Math.round((score / total) * 100);
+      
+      return (
+        <div className="min-h-screen bg-indigo-50 flex flex-col items-center justify-center p-4 text-center font-sans">
+          <div className="bg-white p-6 md:p-10 rounded-3xl shadow-2xl max-w-md w-full relative overflow-hidden my-4">
+            <div className="absolute top-0 left-0 w-full h-2 bg-gradient-to-r from-blue-400 to-purple-500"></div>
+            
+            <div className="mb-4 inline-block p-4 rounded-full bg-yellow-100 text-yellow-500">
+               <Icons.Star size={40} fill="currentColor" />
+            </div>
+            
+            <h2 className="text-2xl md:text-3xl font-bold text-gray-800 mb-1">測驗完成!</h2>
+            
+            <div className="flex items-baseline justify-center mb-4">
+                <span className="text-5xl font-black text-indigo-600">{score}</span>
+                <span className="text-xl text-gray-400 ml-2">/ {total}</span>
+            </div>
+
+            {incorrectItems && incorrectItems.length > 0 ? (
+                <div className="mb-6 w-full text-left">
+                    <div className="flex items-center text-red-500 mb-2 font-bold text-sm bg-red-50 p-2 rounded-lg">
+                        <Icons.XCircle size={16} className="mr-2"/>
+                        需要複習的題目 ({incorrectItems.length})
+                    </div>
+                    <div className="bg-gray-50 rounded-xl p-3 max-h-48 overflow-y-auto border border-gray-200">
+                        {incorrectItems.map((item, idx) => (
+                            <div key={idx} className="mb-3 border-b border-gray-200 last:border-0 pb-2">
+                                <div className="text-gray-600 text-sm font-medium mb-1">{item.q}</div>
+                                <div className="flex flex-col sm:flex-row sm:justify-between sm:items-center text-sm">
+                                    <span className="text-red-500 line-through mr-2 opacity-70 flex items-center">
+                                        <span className="text-xs text-gray-400 mr-1">你的答案:</span> {item.user}
+                                    </span>
+                                    <span className="text-green-600 font-bold flex items-center mt-1 sm:mt-0">
+                                        <Icons.CheckCircle size={12} className="mr-1"/> {item.correct}
+                                    </span>
+                                </div>
+                            </div>
+                        ))}
+                    </div>
+                </div>
+            ) : (
+                <div className="mb-8 bg-green-50 p-4 rounded-xl text-green-700 font-bold">
+                    太棒了！全對！ 🎉
+                </div>
+            )}
+
+            <div className="space-y-3">
+              <button 
+                onClick={onRestart}
+                className="w-full bg-indigo-600 hover:bg-indigo-700 text-white font-bold py-3 rounded-xl transition-colors flex items-center justify-center shadow-lg active:scale-95"
+              >
+                <Icons.RotateCcw size={18} className="mr-2" /> 再玩一次 (Play Again)
+              </button>
+              <button 
+                onClick={onHome}
+                className="w-full bg-white hover:bg-gray-50 text-gray-700 font-bold py-3 rounded-xl border border-gray-200 transition-colors"
+              >
+                回主選單 (Home)
+              </button>
+            </div>
+          </div>
+        </div>
+      );
+    };
+
+    // --- MAIN APP CONTAINER ---
+    function App() {
+      const [appState, setAppState] = useState('menu'); 
+      const [gameMode, setGameMode] = useState('phonics'); 
+      const [gameQuestions, setGameQuestions] = useState([]);
+      const [finalScore, setFinalScore] = useState({ score: 0, total: 0, incorrectList: [] });
+      const [selectedVoice, setSelectedVoice] = useState(null); 
+
+      const handleSelectMode = (mode) => {
+        setGameMode(mode);
+        setAppState('config');
+      };
+
+      const handleStartGame = (units, count, voice) => {
+        let pool = gameMode === 'phonics' ? PHONICS_DATA : VOCABULARY_DATA;
+        pool = pool.filter(item => units.includes(item.unit));
+        pool = shuffleArray(pool);
+        const selectedQuestions = pool.slice(0, count);
+        
+        setGameQuestions(selectedQuestions);
+        setSelectedVoice(voice); 
+        setAppState('playing');
+      };
+
+      const handleFinishGame = (score, total, incorrectList) => {
+        setFinalScore({ score, total, incorrectList });
+        setAppState('results');
+      };
+
+      const handleQuit = () => {
+        if (confirm("確定要離開遊戲嗎？")) {
+          setAppState('menu');
+        }
+      };
+
+      return (
+        <React.Fragment>
+          {appState === 'menu' && <MainMenu onSelectMode={handleSelectMode} />}
+          
+          {appState === 'config' && (
+            <ConfigScreen 
+              mode={gameMode} 
+              onStart={handleStartGame} 
+              onBack={() => setAppState('menu')} 
+            />
+          )}
+
+          {appState === 'playing' && gameMode === 'phonics' && (
+            <PhonicsGame 
+              questions={gameQuestions} 
+              voice={selectedVoice} 
+              onFinish={handleFinishGame}
+              onQuit={handleQuit}
+            />
+          )}
+
+          {appState === 'playing' && gameMode === 'vocab' && (
+            <VocabGame 
+              questions={gameQuestions} 
+              onFinish={handleFinishGame}
+              onQuit={handleQuit}
+            />
+          )}
+
+          {appState === 'results' && (
+            <ResultsScreen 
+              score={finalScore.score} 
+              total={finalScore.total} 
+              incorrectItems={finalScore.incorrectList}
+              onRestart={() => setAppState('config')}
+              onHome={() => setAppState('menu')}
+            />
+          )}
+        </React.Fragment>
+      );
+    }
+
+    const root = ReactDOM.createRoot(document.getElementById('root'));
+    root.render(<App />);
+  </script>
+</body>
+</html>
